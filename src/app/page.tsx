@@ -80,7 +80,15 @@ export default function Home() {
     const h = localStorage.getItem(HISTORY_KEY);
     if (h) {
       try {
-        const arr = JSON.parse(h) as Item[];
+        let arr = JSON.parse(h) as Item[];
+        // migrate legacy items: derive baseModelTaskId from PBR url
+        arr = arr.map((i) => {
+          if (!i.baseModelTaskId && i.modelUrl) {
+            const m = i.modelUrl.split("?")[0].match(/tripo_pbr_model_([0-9a-f-]+)\./);
+            if (m) return { ...i, baseModelTaskId: m[1] };
+          }
+          return i;
+        });
         setItems(arr);
         const done = arr.find((i) => i.status === "done" && i.modelUrl);
         if (done) setActive(done);
@@ -472,10 +480,16 @@ export default function Home() {
 
         <div className="mt-8 flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-200">📚 Gallery ({items.length})</h2>
-          <button onClick={downloadAll}
-            className="bg-slate-800 hover:bg-indigo-600 px-4 py-2 rounded-xl text-sm font-semibold">
-            📦 Download Semua (.zip)
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => { if (confirm("Hapus semua model lama?")) { localStorage.removeItem(HISTORY_KEY); setItems([]); setActive(null); } }}
+              className="bg-red-900/40 hover:bg-red-800 px-3 py-2 rounded-xl text-xs font-semibold">
+              🗑️ Reset
+            </button>
+            <button onClick={downloadAll}
+              className="bg-slate-800 hover:bg-indigo-600 px-4 py-2 rounded-xl text-sm font-semibold">
+              📦 Download Semua (.zip)
+            </button>
+          </div>
         </div>
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
           {items.map((it) => (
