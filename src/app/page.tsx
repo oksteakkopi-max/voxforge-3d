@@ -8,6 +8,7 @@ type Item = {
   id: string;
   prompt: string;
   modelUrl: string | null;
+  taskId?: string;
   status: "pending" | "running" | "done" | "error";
   progress?: number;
   error?: string;
@@ -99,7 +100,7 @@ export default function Home() {
 
   async function exportModel(format: "glb" | "obj" | "fbx" | "usdz" | "stl") {
     if (!active?.modelUrl || !apiKey) return;
-    const taskId = active.modelUrl.match(/tripo_pbr_model_([0-9a-f-]+)\./)?.[1];
+    const taskId = active.taskId || active.modelUrl.match(/tripo_pbr_model_([0-9a-f-]+)\./)?.[1];
     if (!taskId) { alert("URL model invalid"); return; }
     const r = await fetch("/api/generate", {
       method: "POST",
@@ -130,7 +131,7 @@ export default function Home() {
     animType?: string;
   }) {
     if (!active?.modelUrl || !apiKey) { alert("Pilih model & isi API key dulu"); return; }
-    const taskId = active.modelUrl.match(/tripo_pbr_model_([0-9a-f-]+)\./)?.[1];
+    const taskId = active.taskId || active.modelUrl.match(/tripo_pbr_model_([0-9a-f-]+)\./)?.[1];
     if (!taskId) { alert("URL model invalid"); return; }
     setEditBusy(true);
     const r = await fetch("/api/generate", {
@@ -146,7 +147,7 @@ export default function Home() {
       const pr = await fetch(`/api/generate?taskId=${newId}&apiKey=${apiKey}`);
       const pd = await pr.json();
       if (pd.status === "success" && pd.modelUrl) {
-        const updated = { ...active, modelUrl: pd.modelUrl };
+        const updated = { ...active, modelUrl: pd.modelUrl, taskId: newId };
         setActive(updated);
         if (opts.type === "animate_rigging") setCurrentAnim(opts.animType || "idle");
         persist(items.map((it) => (it.id === active.id ? updated : it)));
@@ -198,7 +199,7 @@ export default function Home() {
           persist(upd);
           if (pd.status === "success" && pd.modelUrl) {
             done = true;
-            persist(upd.map((it) => (it.id === tempId ? { ...it, status: "done" as const, modelUrl: pd.modelUrl } : it)));
+            persist(upd.map((it) => (it.id === tempId ? { ...it, status: "done" as const, modelUrl: pd.modelUrl, taskId } : it)));
           } else if (pd.status === "failed" || pd.status === "cancelled" || pd.error) {
             done = true;
             persist(upd.map((it) => (it.id === tempId ? { ...it, status: "error" as const, error: pd.error || "failed" } : it)));
@@ -270,7 +271,7 @@ export default function Home() {
         persist(upd);
         if (pd.status === "success" && pd.modelUrl) {
           done = true;
-          const fin = upd.map((it) => (it.id === tempId ? { ...it, status: "done" as const, modelUrl: pd.modelUrl } : it));
+          const fin = upd.map((it) => (it.id === tempId ? { ...it, status: "done" as const, modelUrl: pd.modelUrl, taskId } : it));
           persist(fin);
           setActive(fin.find((i) => i.id === tempId) || null);
         } else if (pd.status === "failed" || pd.status === "cancelled" || pd.error) {
