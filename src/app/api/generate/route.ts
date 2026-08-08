@@ -45,43 +45,27 @@ export async function POST(req: NextRequest) {
 
   if (mode === "image" && imageDataUrl) {
     const base64 = imageDataUrl.split(",")[1];
-    const r = await tripoFetch("/task", key, {
+    return await tripoFetch("/task", key, {
       method: "POST",
       body: JSON.stringify({
         type: "image_to_model",
         file: { type: "base64", file_name: "input.png", base64 },
-        ...(style ? { model_version: style } : {}),
-        ...(pbr !== undefined ? { pbr } : {}),
-        ...(faceLimit ? { face_limit: faceLimit } : {}),
       }),
     });
-    return r;
   }
 
   if (mode === "text" && prompt) {
-    const r = await tripoFetch("/task", key, {
+    return await tripoFetch("/task", key, {
       method: "POST",
-      body: JSON.stringify({
-        type: "text_to_model",
-        prompt,
-        ...(style ? { model_version: style } : {}),
-        ...(pbr !== undefined ? { pbr } : {}),
-        ...(faceLimit ? { face_limit: faceLimit } : {}),
-      }),
+      body: JSON.stringify({ type: "text_to_model", prompt }),
     });
-    return r;
   }
 
   if (mode === "convert" && taskId && format) {
-    const r = await tripoFetch("/task", key, {
+    return await tripoFetch("/task", key, {
       method: "POST",
-      body: JSON.stringify({
-        type: "convert_model",
-        original_model_task_id: taskId,
-        format,
-      }),
+      body: JSON.stringify({ type: "convert_model", original_model_task_id: taskId, format }),
     });
-    return r;
   }
 
   if (mode === "edit" && type && taskId) {
@@ -105,11 +89,7 @@ export async function POST(req: NextRequest) {
       payload.bake_animation = true;
       payload.animation = `preset:biped:${animType || "idle"}`;
     }
-    const r = await tripoFetch("/task", key, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    return r;
+    return await tripoFetch("/task", key, { method: "POST", body: JSON.stringify(payload) });
   }
 
   return NextResponse.json({ error: "prompt atau image wajib" }, { status: 400 });

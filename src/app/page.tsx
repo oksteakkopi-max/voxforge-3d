@@ -71,12 +71,15 @@ export default function Home() {
   const [batchText, setBatchText] = useState("");
   const [currentAnim, setCurrentAnim] = useState<string | undefined>(undefined);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [colabUrl, setColabUrl] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   // load saved key + history
   useEffect(() => {
     const k = localStorage.getItem("tripo_key") || "";
     if (k) setApiKey(k);
+    const cu = localStorage.getItem("colab_url") || "";
+    if (cu) setColabUrl(cu);
     const h = localStorage.getItem(HISTORY_KEY);
     if (h) {
       try {
@@ -244,10 +247,30 @@ export default function Home() {
 
   async function generate() {
     if (busy) return;
-    if (!apiKey) { alert("Isi Tripo API Key dulu (gratis di platform.tripo3d.ai)"); return; }
-    if (tab === "text" && !prompt.trim()) return;
     if (tab === "image" && !imagePreview) return;
+    if (!apiKey && !colabUrl) { alert("Isi Tripo API Key atau Colab URL (mode gratis)"); return; }
+    if (tab === "text" && !prompt.trim() && !colabUrl) return;
     setBusy(true);
+
+    // FREE MODE: Colab TripoSR (image only)
+    if (colabUrl && tab === "image") {
+      const tempId = crypto.randomUUID();
+      const item: Item = { id: tempId, prompt: "Free: Image-to-3D", modelUrl: null, status: "running", progress: 0 };
+      const next = [item, ...items];
+      persist(next); setActive(item);
+      try {
+        const res = await fetch("/api/free", { method: "POST", headers: { "Content-Type": "application/json", "x-colab-url": colabUrl }, body: JSON.stringify({ imageDataUrl: imagePreview }) });
+        const blob = await res.blob();
+        if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error || "Colab gagal"); }
+        const url = URL.createObjectURL(blob);
+        const fin = next.map((it) => (it.id === tempId ? { ...it, status: "done" as const, modelUrl: url, baseModelTaskId: "free" } : it));
+        persist(fin); setActive(fin.find((i) => i.id === tempId) || null);
+      } catch (err: any) {
+        persist(next.map((it) => (it.id === tempId ? { ...it, status: "error" as const, error: err.message } : it)));
+      } finally { setBusy(false); }
+      return;
+    }
+
     const tempId = crypto.randomUUID();
     const item: Item = {
       id: tempId,
@@ -315,6 +338,15 @@ export default function Home() {
             className="mt-1 w-full bg-slate-800 rounded-xl p-3 text-sm outline-none"
           />
           <p className="mt-1 text-[11px] text-slate-500">Disimpan di browser kamu. Riwayat model juga tersimpan lokal.</p>
+          <hr className="my-3 border-slate-800" />
+          <label className="text-xs text-slate-400 font-semibold">🆓 Mode Gratis — Colab URL (optional)</label>
+          <input
+            value={colabUrl}
+            onChange={(e) => { setColabUrl(e.target.value); localStorage.setItem("colab_url", e.target.value); }}
+            placeholder="https://xxxx.gradio.live (jalankan colab_triosr.ipynb)"
+            className="mt-1 w-full bg-slate-800 rounded-xl p-3 text-sm outline-none"
+          />
+          <p className="mt-1 text-[11px] text-slate-500">Gratis via Colab GPU. Image-to-3D saja (tanpa rig/anim).</p>
         </div>
 
         <div className="mt-6 flex gap-2">
