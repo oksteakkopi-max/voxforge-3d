@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Viewer3D from "@/components/Viewer3D";
 
-export default function ViewPage() {
+function ViewInner() {
   const params = useSearchParams();
   const url = params.get("url");
   const [proxy, setProxy] = useState<string | null>(null);
@@ -38,5 +38,13 @@ export default function ViewPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function ViewPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Loading...</div>}>
+      <ViewInner />
+    </Suspense>
   );
 }
