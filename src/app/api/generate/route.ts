@@ -6,7 +6,6 @@ const ENV_KEY = process.env.TRIPO_API_KEY;
 export const dynamic = "force-dynamic";
 
 function getKey(req: NextRequest, body?: any): string | null {
-  // client-supplied key (BYOK) takes priority, then env
   const fromBody = body?.apiKey;
   const fromQuery = req.nextUrl.searchParams.get("apiKey");
   return fromBody || fromQuery || ENV_KEY || null;
@@ -33,7 +32,6 @@ async function tripoFetch(path: string, key: string, init?: RequestInit) {
   return NextResponse.json(data);
 }
 
-// Start a generation task (text or image)
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const key = getKey(req, body);
@@ -45,7 +43,6 @@ export async function POST(req: NextRequest) {
   }
   const { prompt, imageDataUrl, mode, type, taskId, format, style, texture, pbr, faceLimit, rigType, animType, size } = body;
 
-  // Generic task forwarder (text/image/convert/rig/anim/retexture/remesh/resize/uv)
   if (mode === "image" && imageDataUrl) {
     const base64 = imageDataUrl.split(",")[1];
     const r = await tripoFetch("/task", key, {
@@ -88,7 +85,6 @@ export async function POST(req: NextRequest) {
   }
 
   if (mode === "edit" && type && taskId) {
-    // map UI type -> Tripo V2 task type
     const typeMap: Record<string, string> = {
       retexture: "texture_model",
       remesh: "highpoly_to_lowpoly",
@@ -98,8 +94,6 @@ export async function POST(req: NextRequest) {
       animate_rigging: "animate_retarget",
     };
     const tripoType = typeMap[type] || type;
-
-    // Multi-step rigging pipeline handled in the page; here we just forward single tasks.
     const payload: any = { type: tripoType, original_model_task_id: taskId };
     if (type === "retexture" && prompt) payload.prompt = prompt;
     if (type === "remesh" && faceLimit) { payload.face_limit = faceLimit; payload.quad = false; }
@@ -121,7 +115,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ error: "prompt atau image wajib" }, { status: 400 });
 }
 
-// Poll task status
 export async function GET(req: NextRequest) {
   const taskId = req.nextUrl.searchParams.get("taskId");
   if (!taskId) return NextResponse.json({ error: "taskId wajib" }, { status: 400 });
